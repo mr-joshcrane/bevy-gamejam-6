@@ -13,6 +13,7 @@
 //! purposes. If you want to move the player in a smoother way,
 //! consider using a [fixed timestep](https://github.com/bevyengine/bevy/blob/main/examples/movement/physics_in_fixed_timestep.rs).
 
+use avian2d::{math::AdjustPrecision, prelude::*};
 use bevy::{prelude::*, window::PrimaryWindow};
 
 use crate::{AppSystems, PausableSystems};
@@ -20,10 +21,16 @@ use crate::{AppSystems, PausableSystems};
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<MovementController>();
     app.register_type::<ScreenWrap>();
-
+    app.add_plugins(PhysicsPlugins::default());
+    app.add_plugins(PhysicsDebugPlugin::default());
     app.add_systems(
         Update,
-        (apply_movement, apply_screen_wrap)
+        (
+            apply_screen_wrap,
+            movement_to_physics,
+            apply_gravity,
+            apply_movement_damping,
+        )
             .chain()
             .in_set(AppSystems::Update)
             .in_set(PausableSystems),
@@ -54,17 +61,6 @@ impl Default for MovementController {
     }
 }
 
-fn apply_movement(
-    time: Res<Time>,
-    mut movement_query: Query<(&mut MovementController, &mut Transform)>,
-) {
-    for (mut controller, mut transform) in &mut movement_query {
-        let velocity = controller.max_speed * controller.intent;
-        transform.translation += velocity.extend(0.0) * time.delta_secs();
-        controller.intent = Vec2::ZERO;
-    }
-}
-
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct ScreenWrap;
@@ -79,5 +75,37 @@ fn apply_screen_wrap(
         let position = transform.translation.xy();
         let wrapped = (position + half_size).rem_euclid(size) - half_size;
         transform.translation = wrapped.extend(transform.translation.z);
+    }
+}
+
+fn movement_to_physics(mut query: Query<(&mut MovementController, Option<&mut LinearVelocity>)>) {
+    for (mut controller, maybe_velocity) in &mut query {
+        // If the entity has a LinearVelocity component, use it
+        if let Some(mut velocity) = maybe_velocity {
+            // Convert movement intent to velocity
+            velocity.0 += controller.intent * controller.max_speed;
+            controller.intent = Vec2::ZERO;
+        }
+    }
+}
+
+fn apply_gravity(
+    time: Res<Time>,
+    mut controllers: Query<(&MovementController, &mut LinearVelocity)>,
+) {
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_secs_f64().adjust_precision();
+
+    for (gravity, mut linear_velocity) in &mut controllers {
+        linear_velocity.0 += -9.8 * delta_time;
+    }
+}
+
+/// Slows down movement in the X direction.
+fn apply_movement_damping(mut query: Query<(&MovementController, &mut LinearVelocity)>) {
+    for (damping_factor, mut linear_velocity) in &mut query {
+        // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
+        linear_velocity.x *= 0.9;
     }
 }

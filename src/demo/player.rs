@@ -1,9 +1,11 @@
 //! Player-specific behavior.
 
+use avian2d::prelude::*;
 use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
 };
+use bevy_inspector_egui::quick::{FilterQueryInspectorPlugin, ResourceInspectorPlugin};
 
 use crate::{
     asset_tracking::LoadResource,
@@ -34,7 +36,9 @@ pub fn player(
     let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 6, 2, Some(UVec2::splat(1)), None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
     let player_animation = PlayerAnimation::new();
-
+    let rigid_body = RigidBody::Kinematic;
+    let collider = Collider::rectangle(16., 16.);
+    let linear_damping = LinearDamping(0.2);
     (
         Name::new("Player"),
         Player,
@@ -54,12 +58,15 @@ pub fn player(
         ScreenWrap,
         player_animation,
         Actions::<PlatformerContext>::default(),
+        rigid_body,
+        collider,
+        linear_damping,
     )
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]
-struct Player;
+pub struct Player;
 
 #[derive(Resource, Asset, Clone, Reflect)]
 #[reflect(Resource)]
