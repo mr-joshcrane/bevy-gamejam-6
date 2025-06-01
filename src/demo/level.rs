@@ -1,6 +1,7 @@
 //! Spawn the main level.
 
 use bevy::prelude::*;
+use bevy_ecs_ldtk::{LdtkIntCell, prelude::*};
 
 use crate::{
     asset_tracking::LoadResource,
@@ -10,8 +11,11 @@ use crate::{
 };
 
 pub(super) fn plugin(app: &mut App) {
+    app.add_plugins(LdtkPlugin);
+    app.init_asset::<LdtkProject>();
     app.register_type::<LevelAssets>();
     app.load_resource::<LevelAssets>();
+    app.insert_resource(LevelSelection::index(0));
 }
 
 #[derive(Resource, Asset, Clone, Reflect)]
@@ -19,6 +23,7 @@ pub(super) fn plugin(app: &mut App) {
 pub struct LevelAssets {
     #[dependency]
     music: Handle<AudioSource>,
+    ldtk_level: LdtkProjectHandle,
 }
 
 impl FromWorld for LevelAssets {
@@ -26,6 +31,9 @@ impl FromWorld for LevelAssets {
         let assets = world.resource::<AssetServer>();
         Self {
             music: assets.load("audio/music/Fluffing A Duck.ogg"),
+            ldtk_level: LdtkProjectHandle {
+                handle: assets.load("levels/level.ldtk"),
+            },
         }
     }
 }
@@ -39,8 +47,10 @@ pub fn spawn_level(
 ) {
     commands.spawn((
         Name::new("Level"),
-        Transform::default(),
-        Visibility::default(),
+        LdtkWorldBundle {
+            ldtk_handle: level_assets.ldtk_level.clone(),
+            ..default()
+        },
         StateScoped(Screen::Gameplay),
         children![
             player(400.0, &player_assets, &mut texture_atlas_layouts),
