@@ -40,7 +40,7 @@ pub(super) fn plugin(app: &mut App) {
 /// These are the movement parameters for our character controller.
 /// For now, this is only used for a single player, but it could power NPCs or
 /// other players as well.
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Clone)]
 #[reflect(Component)]
 pub struct MovementController {
     /// The direction the character wants to move in.
@@ -56,7 +56,7 @@ impl Default for MovementController {
         Self {
             intent: Vec2::ZERO,
             // 400 pixels per second is a nice default, but we can still vary this per character.
-            max_speed: 400.0,
+            max_speed: 4.0,
         }
     }
 }

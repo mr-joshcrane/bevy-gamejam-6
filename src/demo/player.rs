@@ -5,12 +5,15 @@ use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
 };
+use bevy_ecs_ldtk::prelude::*;
+
 use bevy_inspector_egui::quick::{FilterQueryInspectorPlugin, ResourceInspectorPlugin};
 
 use crate::{
     asset_tracking::LoadResource,
     demo::{
         animation::PlayerAnimation,
+        collision::CollisionBundle,
         movement::{MovementController, ScreenWrap},
     },
 };
@@ -23,6 +26,51 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
     app.register_type::<PlayerAssets>();
     app.load_resource::<PlayerAssets>();
+    app.register_ldtk_entity::<PlayerBundle>("Player");
+    app.add_systems(
+        Update,
+        post_process_player_bundle.run_if(resource_exists::<PlayerAssets>),
+    );
+}
+
+#[derive(Bundle, Default, LdtkEntity)]
+pub struct PlayerBundle {
+    a: Player,
+    pub actions: Actions<PlatformerContext>,
+    pub sprite: Sprite,
+    pub player_animation: PlayerAnimation,
+    pub movement_controller: MovementController,
+    pub collision_bundle: CollisionBundle,
+    #[grid_coords]
+    pub grid_coords: GridCoords,
+}
+
+fn post_process_player_bundle(
+    mut commands: Commands,
+    player_assets: Res<PlayerAssets>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    query: Query<(Entity, &Player), Added<Player>>,
+) {
+    let player_animation = PlayerAnimation::new();
+
+    for (entity, _) in &query {
+        // Modify just the components you care about
+        commands.entity(entity).insert(Sprite {
+            image: player_assets.ducky.clone(),
+            texture_atlas: Some(TextureAtlas {
+                layout: texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+                    UVec2::splat(32),
+                    6,
+                    2,
+                    Some(UVec2::splat(1)),
+                    None,
+                )),
+                index: player_animation.get_atlas_index(),
+            }),
+            ..default()
+        });
+        commands.entity(entity).insert(player_animation.clone());
+    }
 }
 
 /// The player character.

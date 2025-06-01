@@ -14,7 +14,7 @@ impl Plugin for InputPlugin {
     }
 }
 
-#[derive(InputContext)]
+#[derive(InputContext, Clone)]
 pub struct PlatformerContext;
 
 #[derive(Debug, InputAction)]

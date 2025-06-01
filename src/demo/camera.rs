@@ -1,6 +1,4 @@
-use crate::AppSystems;
-
-use super::{animation::PlayerAnimation, player::Player};
+use super::player::Player;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::{LdtkProjectHandle, prelude::*};
 

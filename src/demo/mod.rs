@@ -7,10 +7,12 @@ use bevy::prelude::*;
 
 mod animation;
 mod camera;
+mod collision;
 mod input;
 pub mod level;
 mod movement;
 pub mod player;
+mod walls;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
@@ -20,5 +22,7 @@ pub(super) fn plugin(app: &mut App) {
         movement::plugin,
         player::plugin,
         camera::plugin,
+        collision::plugin,
+        walls::plugin,
     ));
 }
