@@ -1,4 +1,4 @@
-use avian2d::{math::Vector, prelude::*};
+use avian2d::prelude::*;
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_ecs_ldtk::prelude::*;
 

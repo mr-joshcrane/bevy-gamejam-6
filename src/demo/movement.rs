@@ -77,14 +77,16 @@ fn apply_gravity(
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_secs_f64().adjust_precision();
 
-    for (gravity, mut linear_velocity) in &mut controllers {
+    for (_gravity, mut linear_velocity) in &mut controllers {
         linear_velocity.0 += -9.8 * delta_time;
     }
 }
 
 /// Slows down movement in the X direction.
-fn apply_movement_damping(mut query: Query<(&MovementController, &mut LinearVelocity), Without<Fireball>>) {
-    for (damping_factor, mut linear_velocity) in &mut query {
+fn apply_movement_damping(
+    mut query: Query<(&MovementController, &mut LinearVelocity), Without<Fireball>>,
+) {
+    for (_damping_factor, mut linear_velocity) in &mut query {
         // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
         linear_velocity.x *= 0.9;
     }
