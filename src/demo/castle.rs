@@ -11,7 +11,7 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
-struct Castle;
+pub struct Castle;
 
 #[derive(Component, Default, Clone, Debug)]
 pub struct CastleSection(String);

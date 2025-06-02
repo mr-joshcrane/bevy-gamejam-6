@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-use super::{movement::MovementController};
+use super::{movement::MovementController, player::CharacterController};
 
 pub struct InputPlugin;
 
@@ -10,6 +10,7 @@ impl Plugin for InputPlugin {
         app.add_plugins(EnhancedInputPlugin);
         app.add_input_context::<PlatformerContext>();
         app.add_observer(binding);
+        app.add_observer(record_player_fire_input);
         app.add_observer(record_player_directional_input);
     }
 }
@@ -20,6 +21,15 @@ pub struct PlatformerContext;
 #[derive(Debug, InputAction)]
 #[input_action(output = Vec2)]
 pub struct LateralMovement;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct FireAction;
+
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
+pub enum ActionType {
+    FireballAttack { direction: Vec2 },
+}
 
 fn binding(
     trigger: Trigger<Binding<PlatformerContext>>,
@@ -32,6 +42,7 @@ fn binding(
         east: KeyCode::ArrowRight,
         west: KeyCode::ArrowLeft,
     });
+    action.bind::<FireAction>().to(KeyCode::Space);
 }
 
 fn record_player_directional_input(
@@ -41,5 +52,25 @@ fn record_player_directional_input(
     // Collect directional input.
     let mut move_controller = controller_query.get_mut(trigger.target()).unwrap();
     let intent = trigger.value;
-    move_controller.intent = intent.normalize_or_zero();
+    move_controller.direction = intent.normalize_or_zero();
+}
+
+fn record_player_fire_input(
+    trigger: Trigger<Started<FireAction>>,
+    mut controller_query: Query<(&mut CharacterController, &MovementController)>,
+) {
+    let (mut character_controller, movement_controller) =
+        controller_query.get_mut(trigger.target()).unwrap();
+
+    // Determine direction based on movement controller
+    let direction = if movement_controller.direction.length_squared() > 0.0 {
+        // Use the current movement direction if moving
+        movement_controller.direction.normalize_or_zero()
+    } else {
+        // Default to last non-zero x direction or right if none
+        Vec2::new(1.0, 0.0)
+    };
+
+    // Queue the action with directional information
+    character_controller.queue_action(ActionType::FireballAttack { direction });
 }

@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 mod animation;
+mod balistics;
 mod camera;
 mod castle;
 mod collision;
@@ -26,5 +27,6 @@ pub(super) fn plugin(app: &mut App) {
         collision::plugin,
         walls::plugin,
         castle::plugin,
+        balistics::plugin,
     ));
 }

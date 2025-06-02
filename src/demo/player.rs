@@ -1,5 +1,7 @@
 //! Player-specific behavior.
 
+use std::collections::VecDeque;
+
 use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
@@ -8,12 +10,15 @@ use bevy_ecs_ldtk::prelude::*;
 
 use crate::{
     asset_tracking::LoadResource,
-    demo::{animation::PlayerAnimation, collision::CollisionBundle, movement::MovementController},
+    demo::{animation::PlayerAnimation, movement::MovementController},
 };
 
 use bevy_enhanced_input::prelude::*;
 
-use super::{collision::HeroCollisionBundle, input::PlatformerContext};
+use super::{
+    collision::HeroCollisionBundle,
+    input::{ActionType, PlatformerContext},
+};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
@@ -33,6 +38,7 @@ pub struct PlayerBundle {
     pub sprite: Sprite,
     pub player_animation: PlayerAnimation,
     pub movement_controller: MovementController,
+    pub character_controller: CharacterController,
     pub collision_bundle: HeroCollisionBundle,
     #[grid_coords]
     pub grid_coords: GridCoords,
@@ -46,7 +52,7 @@ fn post_process_player_bundle(
 ) {
     let player_animation = PlayerAnimation::new();
 
-    for (entity) in &query {
+    for entity in &query {
         // Modify just the components you care about
         commands.entity(entity).insert(Sprite {
             image: player_assets.ducky.clone(),
@@ -97,5 +103,22 @@ impl FromWorld for PlayerAssets {
                 assets.load("audio/sound_effects/step4.ogg"),
             ],
         }
+    }
+}
+
+#[derive(Component, Default, Debug, Clone)]
+pub struct CharacterController {
+    pub action_queue: VecDeque<ActionType>,
+}
+
+impl CharacterController {
+    /// Queue an action to be processed
+    pub fn queue_action(&mut self, action: ActionType) {
+        self.action_queue.push_back(action);
+    }
+
+    /// Pop the next action from the queue
+    pub fn pop_action(&mut self) -> Option<ActionType> {
+        self.action_queue.pop_front()
     }
 }

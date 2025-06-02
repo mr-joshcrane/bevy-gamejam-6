@@ -14,9 +14,11 @@
 //! consider using a [fixed timestep](https://github.com/bevyengine/bevy/blob/main/examples/movement/physics_in_fixed_timestep.rs).
 
 use avian2d::{math::AdjustPrecision, prelude::*};
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::prelude::*;
 
 use crate::{AppSystems, PausableSystems};
+
+use super::balistics::Fireball;
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<MovementController>();
@@ -25,38 +27,29 @@ pub(super) fn plugin(app: &mut App) {
     app.add_plugins(PhysicsDebugPlugin::default());
     app.add_systems(
         Update,
-        (
-            apply_screen_wrap,
-            movement_to_physics,
-            apply_gravity,
-            apply_movement_damping,
-        )
+        (movement_to_physics, apply_gravity, apply_movement_damping)
             .chain()
             .in_set(AppSystems::Update)
             .in_set(PausableSystems),
     );
 }
 
-/// These are the movement parameters for our character controller.
-/// For now, this is only used for a single player, but it could power NPCs or
-/// other players as well.
+// Add this new component for movement-only entities
 #[derive(Component, Reflect, Clone)]
 #[reflect(Component)]
 pub struct MovementController {
-    /// The direction the character wants to move in.
-    pub intent: Vec2,
+    /// The direction and intensity of movement
+    pub direction: Vec2,
 
-    /// Maximum speed in world units per second.
-    /// 1 world unit = 1 pixel when using the default 2D camera and no physics engine.
-    pub max_speed: f32,
+    /// Maximum speed in world units per second
+    pub speed: f32,
 }
 
 impl Default for MovementController {
     fn default() -> Self {
         Self {
-            intent: Vec2::ZERO,
-            // 400 pixels per second is a nice default, but we can still vary this per character.
-            max_speed: 4.0,
+            direction: Vec2::ZERO,
+            speed: 4.0,
         }
     }
 }
@@ -65,26 +58,13 @@ impl Default for MovementController {
 #[reflect(Component)]
 pub struct ScreenWrap;
 
-fn apply_screen_wrap(
-    window: Single<&Window, With<PrimaryWindow>>,
-    mut wrap_query: Query<&mut Transform, With<ScreenWrap>>,
-) {
-    let size = window.size() + 256.0;
-    let half_size = size / 2.0;
-    for mut transform in &mut wrap_query {
-        let position = transform.translation.xy();
-        let wrapped = (position + half_size).rem_euclid(size) - half_size;
-        transform.translation = wrapped.extend(transform.translation.z);
-    }
-}
-
 fn movement_to_physics(mut query: Query<(&mut MovementController, Option<&mut LinearVelocity>)>) {
-    for (mut controller, maybe_velocity) in &mut query {
+    for (mut movement_controller, maybe_velocity) in &mut query {
         // If the entity has a LinearVelocity component, use it
         if let Some(mut velocity) = maybe_velocity {
             // Convert movement intent to velocity
-            velocity.0 += controller.intent * controller.max_speed;
-            controller.intent = Vec2::ZERO;
+            velocity.0 += movement_controller.direction * movement_controller.speed;
+            movement_controller.direction = Vec2::ZERO;
         }
     }
 }
@@ -103,7 +83,7 @@ fn apply_gravity(
 }
 
 /// Slows down movement in the X direction.
-fn apply_movement_damping(mut query: Query<(&MovementController, &mut LinearVelocity)>) {
+fn apply_movement_damping(mut query: Query<(&MovementController, &mut LinearVelocity), Without<Fireball>>) {
     for (damping_factor, mut linear_velocity) in &mut query {
         // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
         linear_velocity.x *= 0.9;
