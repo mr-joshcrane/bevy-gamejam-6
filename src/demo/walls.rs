@@ -20,7 +20,7 @@ impl Default for WallBundle {
     fn default() -> Self {
         Self {
             wall: Wall,
-            collider: Collider::rectangle(32.0, 32.0),
+            collider: Collider::rectangle(16., 16.), // Default size for wall collision),
             rigid_body: RigidBody::Static,
         }
     }

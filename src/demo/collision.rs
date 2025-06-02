@@ -16,8 +16,22 @@ pub struct CollisionBundle {
 impl Default for CollisionBundle {
     fn default() -> Self {
         Self {
-            collider: Collider::rectangle(24.0, 24.0),
+            collider: Collider::rectangle(16.0, 16.0), // Default size for collision
             rigid_body: RigidBody::Dynamic,
+        }
+    }
+}
+
+#[derive(Clone, Bundle, LdtkEntity)]
+pub struct HeroCollisionBundle {
+    pub collision_bundle: CollisionBundle,
+    pub ground_detection: GroundDetection,
+}
+impl Default for HeroCollisionBundle {
+    fn default() -> Self {
+        Self {
+            collision_bundle: CollisionBundle::default(),
+            ground_detection: GroundDetection::default(),
         }
     }
 }

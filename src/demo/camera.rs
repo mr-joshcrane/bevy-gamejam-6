@@ -20,7 +20,6 @@ pub fn snap_camera_to_current_level(
     level_selection: Res<LevelSelection>,
     ldtk_project_assets: Res<Assets<LdtkProject>>,
 ) -> Result {
-    info!("Snapping camera to current level");
     // Bail early if the player isn't spawned.
     let Ok(Transform {
         translation: player_translation,

@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 mod animation;
 mod camera;
+mod castle;
 mod collision;
 mod input;
 pub mod level;
@@ -24,5 +25,6 @@ pub(super) fn plugin(app: &mut App) {
         camera::plugin,
         collision::plugin,
         walls::plugin,
+        castle::plugin,
     ));
 }

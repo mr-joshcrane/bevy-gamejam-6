@@ -1,26 +1,19 @@
 //! Player-specific behavior.
 
-use avian2d::prelude::*;
 use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
 };
 use bevy_ecs_ldtk::prelude::*;
 
-use bevy_inspector_egui::quick::{FilterQueryInspectorPlugin, ResourceInspectorPlugin};
-
 use crate::{
     asset_tracking::LoadResource,
-    demo::{
-        animation::PlayerAnimation,
-        collision::CollisionBundle,
-        movement::{MovementController, ScreenWrap},
-    },
+    demo::{animation::PlayerAnimation, collision::CollisionBundle, movement::MovementController},
 };
 
 use bevy_enhanced_input::prelude::*;
 
-use super::input::PlatformerContext;
+use super::{collision::HeroCollisionBundle, input::PlatformerContext};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
@@ -40,7 +33,7 @@ pub struct PlayerBundle {
     pub sprite: Sprite,
     pub player_animation: PlayerAnimation,
     pub movement_controller: MovementController,
-    pub collision_bundle: CollisionBundle,
+    pub collision_bundle: HeroCollisionBundle,
     #[grid_coords]
     pub grid_coords: GridCoords,
 }
@@ -49,11 +42,11 @@ fn post_process_player_bundle(
     mut commands: Commands,
     player_assets: Res<PlayerAssets>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-    query: Query<(Entity, &Player), Added<Player>>,
+    query: Query<Entity, Added<Player>>,
 ) {
     let player_animation = PlayerAnimation::new();
 
-    for (entity, _) in &query {
+    for (entity) in &query {
         // Modify just the components you care about
         commands.entity(entity).insert(Sprite {
             image: player_assets.ducky.clone(),
@@ -71,45 +64,6 @@ fn post_process_player_bundle(
         });
         commands.entity(entity).insert(player_animation.clone());
     }
-}
-
-/// The player character.
-pub fn player(
-    max_speed: f32,
-    player_assets: &PlayerAssets,
-    texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
-) -> impl Bundle {
-    // A texture atlas is a way to split a single image into a grid of related images.
-    // You can learn more in this example: https://github.com/bevyengine/bevy/blob/latest/examples/2d/texture_atlas.rs
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 6, 2, Some(UVec2::splat(1)), None);
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
-    let player_animation = PlayerAnimation::new();
-    let rigid_body = RigidBody::Kinematic;
-    let collider = Collider::rectangle(16., 16.);
-    let linear_damping = LinearDamping(0.2);
-    (
-        Name::new("Player"),
-        Player,
-        Sprite {
-            image: player_assets.ducky.clone(),
-            texture_atlas: Some(TextureAtlas {
-                layout: texture_atlas_layout,
-                index: player_animation.get_atlas_index(),
-            }),
-            ..default()
-        },
-        Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
-        MovementController {
-            max_speed,
-            ..default()
-        },
-        ScreenWrap,
-        player_animation,
-        Actions::<PlatformerContext>::default(),
-        rigid_body,
-        collider,
-        linear_damping,
-    )
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
