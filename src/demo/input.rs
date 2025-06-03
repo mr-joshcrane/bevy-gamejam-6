@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-use super::{movement::MovementController, player::CharacterController};
+use super::{
+    balistics::FireballCooldown, movement::MovementController, player::CharacterController,
+};
 
 pub struct InputPlugin;
 
@@ -57,8 +59,13 @@ fn record_player_directional_input(
 
 fn record_player_fire_input(
     trigger: Trigger<Started<FireAction>>,
+    cooldown: Res<FireballCooldown>,
     mut controller_query: Query<(&mut CharacterController, &MovementController)>,
 ) {
+    if !cooldown.timer.finished() {
+        // If the timer is not finished, the ability is on cooldown
+        return;
+    }
     let (mut character_controller, movement_controller) =
         controller_query.get_mut(trigger.target()).unwrap();
 

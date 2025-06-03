@@ -52,15 +52,39 @@ fn update_animation_movement(
 }
 
 /// Update the animation timer.
-fn update_animation_timer(time: Res<Time>, mut query: Query<&mut PlayerAnimation>) {
+fn update_animation_timer(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<&mut PlayerAnimation>,
+    explosion_query: Query<(Entity, &mut ExplosionAnimation)>,
+) {
     for mut animation in &mut query {
         animation.update_timer(time.delta());
     }
+    for (entity, mut explosion_animation) in explosion_query {
+        explosion_animation.update_timer(time.delta());
+        if explosion_animation.is_finished() {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
-/// Update the texture atlas to reflect changes in the animation.
-fn update_animation_atlas(mut query: Query<(&PlayerAnimation, &mut Sprite)>) {
-    for (animation, mut sprite) in &mut query {
+fn update_animation_atlas(
+    mut player_query: Query<(&PlayerAnimation, &mut Sprite), Without<ExplosionAnimation>>,
+    mut explosion_query: Query<(&ExplosionAnimation, &mut Sprite), Without<PlayerAnimation>>,
+) {
+    // Update player sprite atlas
+    for (animation, mut sprite) in &mut player_query {
+        let Some(atlas) = sprite.texture_atlas.as_mut() else {
+            continue;
+        };
+        if animation.changed() {
+            atlas.index = animation.get_atlas_index();
+        }
+    }
+
+    // Update explosion sprite atlas
+    for (animation, mut sprite) in &mut explosion_query {
         let Some(atlas) = sprite.texture_atlas.as_mut() else {
             continue;
         };
@@ -170,5 +194,52 @@ impl PlayerAnimation {
             PlayerAnimationState::Idling => self.frame,
             PlayerAnimationState::Walking => 6 + self.frame,
         }
+    }
+}
+
+#[derive(Component, Default)]
+pub struct ExplosionAnimation {
+    timer: Timer,
+    frame: usize,
+    total_frames: usize,
+    finished: bool,
+}
+
+impl ExplosionAnimation {
+    const EXPLOSION_FRAMES: usize = 12;
+    const EXPLOSION_INTERVAL: Duration = Duration::from_millis(50);
+
+    pub fn new() -> Self {
+        Self {
+            timer: Timer::new(Self::EXPLOSION_INTERVAL, TimerMode::Repeating),
+            frame: 0,
+            total_frames: Self::EXPLOSION_FRAMES,
+            finished: false,
+        }
+    }
+
+    pub fn update_timer(&mut self, delta: Duration) {
+        self.timer.tick(delta);
+        if !self.timer.finished() {
+            return;
+        }
+
+        self.frame += 1;
+        if self.frame >= self.total_frames {
+            self.finished = true;
+            self.frame = self.total_frames - 1;
+        }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    pub fn get_atlas_index(&self) -> usize {
+        self.frame
+    }
+
+    pub fn changed(&self) -> bool {
+        self.timer.finished()
     }
 }

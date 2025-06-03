@@ -2,15 +2,48 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 
+use crate::demo::balistics::ExplosionBundle;
+
+use super::balistics::{ExplosionAssets, Fireball};
+
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, spawn_ground_sensor)
-        .add_systems(Update, update_on_ground);
+        .add_systems(Update, update_on_ground)
+        .add_systems(
+            Update,
+            fireball_collisions.run_if(resource_exists::<ExplosionAssets>),
+        );
+}
+
+fn fireball_collisions(
+    mut commands: Commands,
+    explosion_assets: ResMut<ExplosionAssets>,
+    query: Query<(Entity, &CollidingEntities, &Transform), With<Fireball>>,
+) {
+    for (entity, colliding_entities, transform) in &query {
+        info!(
+            "Fireball entity: {:?} has colliding entities: {:?}",
+            entity, colliding_entities
+        );
+        if colliding_entities.is_empty() {
+            continue;
+        } else {
+            info!(
+                "Fireball entity: {:?} has {} colliding entities",
+                entity,
+                colliding_entities.len()
+            );
+            commands.spawn(ExplosionBundle::new(transform, &explosion_assets));
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 #[derive(Clone, Bundle, LdtkIntCell)]
 pub struct CollisionBundle {
     pub collider: Collider,
     pub rigid_body: RigidBody,
+    pub colloding_entities: CollidingEntities,
 }
 
 impl Default for CollisionBundle {
@@ -18,22 +51,15 @@ impl Default for CollisionBundle {
         Self {
             collider: Collider::rectangle(16.0, 16.0), // Default size for collision
             rigid_body: RigidBody::Dynamic,
+            colloding_entities: CollidingEntities::default(),
         }
     }
 }
 
-#[derive(Clone, Bundle, LdtkEntity)]
+#[derive(Clone, Bundle, Default, LdtkEntity)]
 pub struct HeroCollisionBundle {
     pub collision_bundle: CollisionBundle,
     pub ground_detection: GroundDetection,
-}
-impl Default for HeroCollisionBundle {
-    fn default() -> Self {
-        Self {
-            collision_bundle: CollisionBundle::default(),
-            ground_detection: GroundDetection::default(),
-        }
-    }
 }
 
 #[derive(Clone, Default, Component)]
