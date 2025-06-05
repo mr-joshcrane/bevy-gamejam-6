@@ -1,0 +1,3 @@
+Entity: 56v1#4294967352, Coords: GridCoords { x: 6, y: 1 }
+Entity: 57v1#4294967353, Coords: GridCoords { x: 13, y: 1 }
+Entity: 58v1#4294967354, Coords: GridCoords { x: 14, y: 3 }
