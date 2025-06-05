@@ -107,7 +107,7 @@ pub struct ExplosionBundle {
 }
 
 impl ExplosionBundle {
-    pub fn new(transform: &Transform, assets: &ResMut<ExplosionAssets>) -> Self {
+    pub fn new(transform: &Transform, assets: &Res<ExplosionAssets>) -> Self {
         let image = assets.image_handle.clone();
         let layout = assets.layout_handle.clone();
         Self {

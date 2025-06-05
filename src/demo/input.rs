@@ -38,12 +38,12 @@ fn binding(
     mut actions: Query<&mut Actions<PlatformerContext>>,
 ) {
     let mut action = actions.get_mut(trigger.target()).unwrap();
-    action.bind::<LateralMovement>().to(Cardinal {
+    action.bind::<LateralMovement>().to((Cardinal {
         north: KeyCode::ArrowUp,
         south: KeyCode::ArrowDown,
         east: KeyCode::ArrowRight,
         west: KeyCode::ArrowLeft,
-    });
+    },));
     action.bind::<FireAction>().to(KeyCode::Space);
 }
 

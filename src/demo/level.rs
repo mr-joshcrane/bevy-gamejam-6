@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 
-use crate::{asset_tracking::LoadResource, audio::music, screens::Screen};
+use crate::{asset_tracking::LoadResource, screens::Screen};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins(LdtkPlugin);
@@ -11,6 +11,7 @@ pub(super) fn plugin(app: &mut App) {
     app.register_type::<LevelAssets>();
     app.load_resource::<LevelAssets>();
     app.insert_resource(LevelSelection::index(0));
+    app.insert_resource(LdtkReady::default());
 }
 
 #[derive(Resource, Asset, Clone, Reflect)]
@@ -42,9 +43,12 @@ pub fn spawn_level(mut commands: Commands, level_assets: Res<LevelAssets>) {
             ..default()
         },
         StateScoped(Screen::Gameplay),
-        children![(
-            Name::new("Gameplay Music"),
-            music(level_assets.music.clone())
-        )],
+        // children![(
+        //     Name::new("Gameplay Music"),
+        //     music(level_assets.music.clone())
+        // )],
     ));
 }
+
+#[derive(Resource, Default)]
+pub struct LdtkReady;

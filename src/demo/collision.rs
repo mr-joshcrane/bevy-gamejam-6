@@ -17,25 +17,38 @@ pub fn plugin(app: &mut App) {
 
 fn fireball_collisions(
     mut commands: Commands,
-    explosion_assets: ResMut<ExplosionAssets>,
-    query: Query<(Entity, &CollidingEntities, &Transform), With<Fireball>>,
+    explosion_assets: Res<ExplosionAssets>, // Changed from ResMut if not mutated by this system directly
+    fireball_query: Query<(Entity, &CollidingEntities, &GlobalTransform), With<Fireball>>,
+    // Query for all dynamic rigid bodies that could be affected by the shockwave
+    mut dynamic_bodies_query: Query<(Entity, &GlobalTransform, &RigidBody), Without<Fireball>>,
 ) {
-    for (entity, colliding_entities, transform) in &query {
-        info!(
-            "Fireball entity: {:?} has colliding entities: {:?}",
-            entity, colliding_entities
-        );
+    for (fireball_entity, colliding_entities, fireball_gt) in &fireball_query {
         if colliding_entities.is_empty() {
             continue;
-        } else {
-            info!(
-                "Fireball entity: {:?} has {} colliding entities",
-                entity,
-                colliding_entities.len()
-            );
-            commands.spawn(ExplosionBundle::new(transform, &explosion_assets));
-            commands.entity(entity).despawn();
         }
+
+        info!(
+            "Fireball entity: {:?} has {} colliding entities. Creating explosion.",
+            fireball_entity,
+            colliding_entities.len()
+        );
+
+        // Spawn the explosion visual
+        // Ensure ExplosionBundle::new takes Vec3 and &ExplosionAssets
+        commands.spawn(ExplosionBundle::new(
+            &fireball_gt.compute_transform(),
+            &explosion_assets,
+        ));
+
+        // Apply shockwave by calling the new function
+        apply_explosion_shockwave(
+            &mut commands,             // Pass commands
+            fireball_gt.translation(), // Use the fireball's position as the explosion origin
+            &mut dynamic_bodies_query, // Pass the query for dynamic bodies
+        );
+
+        // Despawn the fireball
+        commands.entity(fireball_entity).despawn();
     }
 }
 
@@ -52,6 +65,20 @@ impl Default for CollisionBundle {
             collider: Collider::rectangle(16.0, 16.0), // Default size for collision
             rigid_body: RigidBody::Dynamic,
             colloding_entities: CollidingEntities::default(),
+        }
+    }
+}
+
+impl From<&EntityInstance> for CollisionBundle {
+    fn from(entity_instance: &EntityInstance) -> Self {
+        let width = entity_instance.width as f32;
+        let height = entity_instance.height as f32;
+
+        info!("Block size from LDtk entity: {} x {}", width, height);
+
+        Self {
+            collider: Collider::rectangle(width, height),
+            ..Default::default()
         }
     }
 }
@@ -92,5 +119,60 @@ pub fn spawn_ground_sensor(
 pub fn update_on_ground(mut ground_detectors: Query<(&mut GroundDetection, &ShapeHits)>) {
     for (mut ground_detection, hits) in &mut ground_detectors {
         ground_detection.on_ground = !hits.is_empty();
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct ShockwaveHit {
+    pub impulse: Vec2,
+}
+
+fn apply_explosion_shockwave(
+    commands: &mut Commands,
+    explosion_origin_pos: Vec3,
+    dynamic_bodies_query: &mut Query<(Entity, &GlobalTransform, &RigidBody), Without<Fireball>>,
+) {
+    info!(
+        "Starting shockwave application at position: {:?}",
+        explosion_origin_pos
+    );
+    const SHOCKWAVE_RADIUS: f32 = 200.0;
+    const SHOCKWAVE_RADIUS_SQUARED: f32 = SHOCKWAVE_RADIUS * SHOCKWAVE_RADIUS;
+    const SHOCKWAVE_BASE_IMPULSE: f32 = 75000.0;
+    const MIN_DISTANCE_SQUARED: f32 = 0.01;
+
+    for (target_entity, target_gt, target_rb) in dynamic_bodies_query.iter_mut() {
+        // iter_mut if you might modify components, else iter
+        if !matches!(target_rb, RigidBody::Dynamic) {
+            continue;
+        }
+
+        let target_world_pos = target_gt.translation();
+        let vector_to_target = target_world_pos - explosion_origin_pos;
+        let distance_squared = vector_to_target.length_squared();
+
+        if distance_squared < SHOCKWAVE_RADIUS_SQUARED && distance_squared > MIN_DISTANCE_SQUARED {
+            let distance = distance_squared.sqrt();
+            let direction_2d = (vector_to_target.truncate() / distance).normalize_or_zero();
+
+            if direction_2d == Vec2::ZERO {
+                continue;
+            }
+
+            // let falloff_factor = 1.0 - (distance / SHOCKWAVE_RADIUS); // Linear falloff
+            let falloff_factor = (1.0 - (distance / SHOCKWAVE_RADIUS)).powi(2); // Quadratic falloff
+            // let falloff_factor = 1.0 / (1.0 + distance_squared / (SHOCKWAVE_RADIUS * SHOCKWAVE_RADIUS)).max(0.0); // Inverse square falloff
+            let impulse_magnitude = SHOCKWAVE_BASE_IMPULSE * falloff_factor;
+            if impulse_magnitude <= 0.0 {
+                continue;
+            }
+
+            commands.entity(target_entity).insert((
+                ExternalImpulse::new(direction_2d * impulse_magnitude),
+                ShockwaveHit {
+                    impulse: direction_2d * impulse_magnitude,
+                }, // Add the tag component with the impulse
+            ));
+        }
     }
 }
