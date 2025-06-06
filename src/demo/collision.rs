@@ -56,7 +56,8 @@ fn fireball_collisions(
 pub struct CollisionBundle {
     pub collider: Collider,
     pub rigid_body: RigidBody,
-    pub colloding_entities: CollidingEntities,
+    pub colliding_entities: CollidingEntities,
+    pub sleeping: Sleeping,
 }
 
 impl Default for CollisionBundle {
@@ -64,7 +65,8 @@ impl Default for CollisionBundle {
         Self {
             collider: Collider::rectangle(16.0, 16.0), // Default size for collision
             rigid_body: RigidBody::Dynamic,
-            colloding_entities: CollidingEntities::default(),
+            colliding_entities: CollidingEntities::default(),
+            sleeping: Sleeping
         }
     }
 }

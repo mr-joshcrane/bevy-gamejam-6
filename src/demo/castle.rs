@@ -92,7 +92,7 @@ pub struct CastleBundle {
 fn update_castle_mass(
     mut ran_update_mass: Local<bool>,
     mut commands: Commands,
-    query: Query<Entity, Added<CastleBlock>>,
+    query: Query<(Entity, &BlockSize), Added<CastleBlock>>,
 ) {
     if *ran_update_mass {
         return; // Prevent running this system multiple times
@@ -101,9 +101,10 @@ fn update_castle_mass(
         info!("No castle blocks found to update mass.");
         return;
     }
-    for entity in &query {
+    for (entity, block_size) in &query {
+        let mass = block_size.0.x * block_size.0.y * 100.;
         info!("Setting mass for castle entity: {:?}", entity);
-        commands.entity(entity).insert(Mass(10000.0)); // Set a default mass for the castle
+        commands.entity(entity).insert(Mass(mass)); // Set a default mass for the castle
     }
     *ran_update_mass = true; // Mark that we've run this system
 }
@@ -132,9 +133,6 @@ fn visualize_castle_sections(mut query: Query<(&CastleSection, &mut Sprite), Wit
     }
 }
 
-fn grid_coords_to_vec2(coords: &GridCoords) -> Vec2 {
-    Vec2::new(coords.x as f32, coords.y as f32)
-}
 #[derive(Debug, Copy, Clone)]
 struct BlockComposite {
     entity: Entity,
@@ -175,10 +173,10 @@ fn register_all_blocks_for_castle_section(
 
 fn calculate_anchor(bk1: BlockComposite, bk2: BlockComposite) -> Vec2 {
     // Translate everything relative to grid size
-    info!("BK1 {:?}", bk1);
-    info!("BK2 {:?}", bk2);
+    // info!("BK1 {:?}", bk1);
+    // info!("BK2 {:?}", bk2);
     let translated_other = (bk2.center_point - bk1.center_point) * GRID_SIZE as f32;
-    info!("{:?}", translated_other);
+    // info!("{:?}", translated_other);
     let x_max = bk1.block_size.0.x / 2.;
     let y_max = bk1.block_size.0.y / 2.;
 
@@ -222,7 +220,6 @@ fn create_mortar_joints(
     }
     info!("Creating mortar joints for castle blocks...");
     let mut global_grid = HashMap::<GridCoords, BlockComposite>::new();
-
     // First pass: collect all blocks by section
     for (castle_entity, coords, _section, block_size) in &mut castle_query {
         register_all_blocks_for_castle_section(&mut global_grid, coords, castle_entity, block_size);
@@ -242,15 +239,15 @@ fn create_mortar_joints(
                 x: coordinate.x + dir.x,
                 y: coordinate.y + dir.y,
             };
-            info!(
-                "Entity {:?} at {:?}, Checking potential neighbor at: {:?}",
-                block_composite.entity, block_composite.center_point, potential_neighbor_coords,
-            );
+            // info!(
+            //     "Entity {:?} at {:?}, Checking potential neighbor at: {:?}",
+            //     block_composite.entity, block_composite.center_point, potential_neighbor_coords,
+            // );
             let candidate = global_grid.get(&potential_neighbor_coords);
-            info!(
-                "Candidate for neighbor at {:?} is: {:?}",
-                potential_neighbor_coords, candidate
-            );
+            // info!(
+            //     "Candidate for neighbor at {:?} is: {:?}",
+            //     potential_neighbor_coords, candidate
+            // );
             if candidate.is_none() {
                 continue;
             }
@@ -259,15 +256,18 @@ fn create_mortar_joints(
                 continue;
             }
 
-            info!(
-                "Found neighbor entity: {:?} at coordinate: {:?} for entity: {:?}",
-                candidate.entity, potential_neighbor_coords, block_composite.entity,
-            );
+            // info!(
+            //     "Found neighbor entity: {:?} at coordinate: {:?} for entity: {:?}",
+            //     candidate.entity, potential_neighbor_coords, block_composite.entity,
+            // );
 
-            commands.spawn((create_joint(*block_composite, *candidate)));
+            let joint_id = commands
+                .spawn(create_joint(*block_composite, *candidate))
+                .id();
+            commands.entity(block_composite.entity).add_child(joint_id);
+            commands.entity(candidate.entity).add_child(joint_id);
         }
     }
-
     *ran_mortar_joints = true; // Mark that we've run this system
 }
 
@@ -277,7 +277,7 @@ fn create_joint(bk1: BlockComposite, bk2: BlockComposite) -> FixedJoint {
     info!("Anchor point 1 {:?}", anchor1);
     info!("Anchor point 2 {:?}", anchor2);
     FixedJoint::new(bk1.entity, bk2.entity)
-        .with_compliance(1.0)
+        .with_compliance(0.00005)
         .with_linear_velocity_damping(0.1) // Some vibration damping
         .with_angular_velocity_damping(0.1)
         .with_local_anchor_1(anchor1)
@@ -310,6 +310,7 @@ fn handle_castle_impulses(
             // Clone the joints to avoid borrowing issues
 
             // Find all joints connected to this castle entity
+            info!("length of child joints {:?}", child_joints.len());
             for joint_entity in child_joints {
                 commands.entity(*joint_entity).despawn();
             }
