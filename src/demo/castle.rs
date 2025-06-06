@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use avian2d::prelude::*;
+use avian2d::{parry::na::coordinates::X, prelude::*};
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_ecs_ldtk::prelude::*;
 
@@ -156,8 +156,8 @@ fn register_all_blocks_for_castle_section(
     let shape_end_y = top_left.y - depth_normalised;
 
     let center_point = Vec2::new(
-        (top_left.x + width_normalised) as f32,
-        (top_left.y + depth_normalised) as f32,
+        top_left.x as f32 + (width_normalised as f32 / 2.),
+        top_left.y as f32 - (depth_normalised as f32 / 2.),
     );
 
     for x in (top_left.x..shape_end_x) {
@@ -170,6 +170,41 @@ fn register_all_blocks_for_castle_section(
             info!("{:?} inserted at {:?}", bk, (x, y));
             global_grid.insert(GridCoords { x, y }, bk);
         }
+    }
+}
+
+fn calculate_anchor(bk1: BlockComposite, bk2: BlockComposite) -> Vec2 {
+    // Translate everything relative to grid size
+    info!("BK1 {:?}", bk1);
+    info!("BK2 {:?}", bk2);
+    let translated_other = (bk2.center_point - bk1.center_point) * GRID_SIZE as f32;
+    info!("{:?}", translated_other);
+    let x_max = bk1.block_size.0.x / 2.;
+    let y_max = bk1.block_size.0.y / 2.;
+
+    if (bk1.block_size.0.x > bk2.block_size.0.x) {
+        let mut x = translated_other.x.clamp(-x_max, y_max);
+        let mut y = translated_other.y.clamp(-y_max, y_max);
+        if x.abs() == x_max && y.abs() == y_max {
+            if x > y {
+                y = 0.0;
+            } else {
+                x = 0.0;
+            }
+        }
+
+        Vec2::new(x, y)
+    } else {
+        let mut x = translated_other.x;
+        let mut y = translated_other.y;
+        if x.abs() > y.abs() {
+            y = 0.0;
+        } else {
+            x = 0.0;
+        }
+        x = x.clamp(-x_max, x_max);
+        y = y.clamp(-y_max, y_max);
+        Vec2::new(x, y)
     }
 }
 
@@ -194,9 +229,7 @@ fn create_mortar_joints(
     }
 
     let directions = [
-        GridCoords::new(1, 0), // Right
-        // GridCoords::new(-1, 0), // Left
-        // GridCoords::new(0, 1),  // Up
+        GridCoords::new(1, 0),  // Right
         GridCoords::new(0, -1), // Down
     ];
     // Second pass: for each section, build grid map and create joints
@@ -231,42 +264,24 @@ fn create_mortar_joints(
                 candidate.entity, potential_neighbor_coords, block_composite.entity,
             );
 
-            commands.spawn((create_joint(block_composite.entity, candidate.entity)));
+            commands.spawn((create_joint(*block_composite, *candidate)));
         }
     }
 
     *ran_mortar_joints = true; // Mark that we've run this system
 }
 
-fn calculate_anchor(direction: Vec2, block_size: BlockSize) -> Vec2 {
-    // Calculate the second anchor point based on the connection vector and block size
-    // Normalize direction to unit vector
-    let norm = direction.normalize_or_zero();
-
-    // Scale by half block size (since your block goes from -blocksize to +blocksize)
-    let result = Vec2::new(
-        (norm.x * block_size.0.x) / 2.,
-        (norm.y * block_size.0.y) / 2.,
-    );
-
-    if (result.x > block_size.0.x / 2.0)
-        || (result.x < -block_size.0.x / 2.0)
-        || (result.y > block_size.0.y / 2.0)
-        || (result.y < -block_size.0.y / 2.0)
-    {
-        warn!(
-            "Calculated anchor point {:?} is outside the expected range for block size {:?}",
-            result, block_size
-        );
-    }
-    result
-}
-
-fn create_joint(entity1: Entity, entity2: Entity) -> FixedJoint {
-    FixedJoint::new(entity1, entity2)
+fn create_joint(bk1: BlockComposite, bk2: BlockComposite) -> FixedJoint {
+    let anchor1 = calculate_anchor(bk1, bk2);
+    let anchor2 = calculate_anchor(bk2, bk1);
+    info!("Anchor point 1 {:?}", anchor1);
+    info!("Anchor point 2 {:?}", anchor2);
+    FixedJoint::new(bk1.entity, bk2.entity)
         .with_compliance(1.0)
         .with_linear_velocity_damping(0.1) // Some vibration damping
         .with_angular_velocity_damping(0.1)
+        .with_local_anchor_1(anchor1)
+        .with_local_anchor_2(anchor2)
 }
 
 fn handle_castle_impulses(

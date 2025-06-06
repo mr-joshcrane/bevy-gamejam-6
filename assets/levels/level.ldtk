@@ -432,7 +432,7 @@
 						},
 						{
 							"__identifier": "Castle",
-							"__grid": [10,15],
+							"__grid": [21,15],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
@@ -441,14 +441,14 @@
 							"width": 16,
 							"height": 16,
 							"defUid": 5,
-							"px": [160,240],
+							"px": [336,240],
 							"fieldInstances": [{ "__identifier": "SectionName", "__type": "Array<String>", "__value": [], "__tile": null, "defUid": 6, "realEditorValues": [] }],
-							"__worldX": 160,
+							"__worldX": 336,
 							"__worldY": 224
 						},
 						{
 							"__identifier": "Castle",
-							"__grid": [11,14],
+							"__grid": [22,14],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
@@ -457,10 +457,26 @@
 							"width": 32,
 							"height": 32,
 							"defUid": 5,
-							"px": [176,224],
+							"px": [352,224],
 							"fieldInstances": [{ "__identifier": "SectionName", "__type": "Array<String>", "__value": [], "__tile": null, "defUid": 6, "realEditorValues": [] }],
-							"__worldX": 176,
+							"__worldX": 352,
 							"__worldY": 208
+						},
+						{
+							"__identifier": "Castle",
+							"__grid": [16,11],
+							"__pivot": [0,0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#D77643",
+							"iid": "794b4f50-3740-11f0-8cfa-ed21d9c24191",
+							"width": 80,
+							"height": 80,
+							"defUid": 5,
+							"px": [256,176],
+							"fieldInstances": [{ "__identifier": "SectionName", "__type": "Array<String>", "__value": [], "__tile": null, "defUid": 6, "realEditorValues": [] }],
+							"__worldX": 256,
+							"__worldY": 160
 						}
 					]
 				}
