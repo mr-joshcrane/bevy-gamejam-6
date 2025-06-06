@@ -132,24 +132,45 @@ fn visualize_castle_sections(mut query: Query<(&CastleSection, &mut Sprite), Wit
     }
 }
 
-fn insert_rectangle_into_map(
-    map: &mut HashMap<GridCoords, (Entity, BlockSize)>,
+fn grid_coords_to_vec2(coords: &GridCoords) -> Vec2 {
+    Vec2::new(coords.x as f32, coords.y as f32)
+}
+#[derive(Debug, Copy, Clone)]
+struct BlockComposite {
+    entity: Entity,
+    block_size: BlockSize,
+    center_point: Vec2,
+}
+
+static GRID_SIZE: i32 = 16;
+
+fn register_all_blocks_for_castle_section(
+    global_grid: &mut HashMap<GridCoords, BlockComposite>,
     top_left: &GridCoords,
     entity: Entity,
     block_size: &BlockSize,
 ) {
-    let grid_cell_size = 16;
-    let cells_wide = (block_size.0.x / grid_cell_size as f32).round() as i32;
-    let cells_high = (block_size.0.y / grid_cell_size as f32).round() as i32;
-    for x in top_left.x..(top_left.x + cells_wide) {
-        for y in (top_left.y - cells_high + 1)..=top_left.y {
-            map.insert(GridCoords { x, y }, (entity, block_size.clone()));
+    let width_normalised = block_size.0.x as i32 / GRID_SIZE;
+    let depth_normalised = block_size.0.y as i32 / GRID_SIZE;
+    let shape_end_x = top_left.x + width_normalised;
+    let shape_end_y = top_left.y - depth_normalised;
+
+    let center_point = Vec2::new(
+        (top_left.x + width_normalised) as f32,
+        (top_left.y + depth_normalised) as f32,
+    );
+
+    for x in (top_left.x..shape_end_x) {
+        for y in (shape_end_y + 1..=top_left.y) {
+            let bk = BlockComposite {
+                entity: entity,
+                block_size: block_size.clone(),
+                center_point: center_point,
+            };
+            info!("{:?} inserted at {:?}", bk, (x, y));
+            global_grid.insert(GridCoords { x, y }, bk);
         }
     }
-}
-
-fn grid_coords_to_vec2(coords: &GridCoords) -> Vec2 {
-    Vec2::new(coords.x as f32, coords.y as f32)
 }
 
 fn create_mortar_joints(
@@ -160,86 +181,57 @@ fn create_mortar_joints(
     if *ran_mortar_joints {
         return; // Prevent running this system multiple times
     }
-    let grid_size = 1; // Size of the grid cells
     if castle_query.is_empty() {
         info!("No castle blocks found to create mortar joints.");
         return;
     }
     info!("Creating mortar joints for castle blocks...");
-    let mut global_grid = HashMap::<GridCoords, (Entity, BlockSize)>::new();
-    let mut block_coords = Vec::new();
+    let mut global_grid = HashMap::<GridCoords, BlockComposite>::new();
 
     // First pass: collect all blocks by section
     for (castle_entity, coords, _section, block_size) in &mut castle_query {
-        // The coords represent the center block, so we need to add every blocks position
-        // using the half block size to calculate the edges, and add every block in the area
-        insert_rectangle_into_map(&mut global_grid, coords, castle_entity, block_size);
-        block_coords.push((coords, castle_entity, block_size.clone()));
-    }
-    if let Ok(mut file) = File::create("block_coords_dump.txt") {
-        for (coords, entity, e1_block_size) in &block_coords {
-            let line = format!("Entity: {:?}, Coords: {:?}\n", entity, coords);
-            let _ = file.write_all(line.as_bytes());
-        }
-    }
-    if let Ok(mut file) = File::create("global_grid_dump.txt") {
-        for (cell, entity) in &global_grid {
-            let line = format!("Cell: {:?}, Entity: {:?}\n", cell, entity);
-            let _ = file.write_all(line.as_bytes());
-        }
+        register_all_blocks_for_castle_section(&mut global_grid, coords, castle_entity, block_size);
     }
 
+    let directions = [
+        GridCoords::new(1, 0), // Right
+        // GridCoords::new(-1, 0), // Left
+        // GridCoords::new(0, 1),  // Up
+        GridCoords::new(0, -1), // Down
+    ];
     // Second pass: for each section, build grid map and create joints
-    for (coordinate, castle_entity, e1_block_size) in block_coords {
-        info!(
-            "Processing castle entity: {:?} at coordinate: {:?}",
-            castle_entity, coordinate
-        );
-        // Create joints between adjacent blocks
-
-        let directions = [
-            GridCoords::new(1, 0), // Right
-            // GridCoords::new(-1, 0), // Left
-            // GridCoords::new(0, 1),  // Up
-            GridCoords::new(0, -1), // Down
-        ];
+    for (coordinate, block_composite) in &global_grid {
+        // Detect neighbours
+        // If neighbours, detect if same entity, if so pass
 
         for dir in directions {
-            let potential_neighbor = GridCoords {
+            let potential_neighbor_coords = GridCoords {
                 x: coordinate.x + dir.x,
                 y: coordinate.y + dir.y,
             };
             info!(
-                "Checking potential neighbor at: {:?} for entity: {:?}",
-                potential_neighbor, castle_entity
+                "Entity {:?} at {:?}, Checking potential neighbor at: {:?}",
+                block_composite.entity, block_composite.center_point, potential_neighbor_coords,
             );
-            let candidate = global_grid.get(&potential_neighbor);
+            let candidate = global_grid.get(&potential_neighbor_coords);
             info!(
                 "Candidate for neighbor at {:?} is: {:?}",
-                potential_neighbor, candidate
+                potential_neighbor_coords, candidate
             );
-            if global_grid.get(&potential_neighbor).is_some() {
-                let (neighbor, block_size) = global_grid[&potential_neighbor];
-                if neighbor == castle_entity {
-                    info!(
-                        "Skipping self-reference for entity: {:?} at coordinate: {:?}",
-                        neighbor, potential_neighbor
-                    );
-                    continue; // Skip self-reference
-                }
-                info!(
-                    "Found neighbor entity: {:?} at coordinate: {:?} for entity: {:?}",
-                    neighbor, potential_neighbor, castle_entity,
-                );
-                commands.spawn((create_joint(
-                    castle_entity,
-                    neighbor,
-                    grid_coords_to_vec2(coordinate),
-                    grid_coords_to_vec2(&dir),
-                    e1_block_size.clone(),
-                    block_size,
-                ),));
+            if candidate.is_none() {
+                continue;
             }
+            let candidate = candidate.unwrap();
+            if candidate.entity == block_composite.entity {
+                continue;
+            }
+
+            info!(
+                "Found neighbor entity: {:?} at coordinate: {:?} for entity: {:?}",
+                candidate.entity, potential_neighbor_coords, block_composite.entity,
+            );
+
+            commands.spawn((create_joint(block_composite.entity, candidate.entity)));
         }
     }
 
@@ -270,27 +262,11 @@ fn calculate_anchor(direction: Vec2, block_size: BlockSize) -> Vec2 {
     result
 }
 
-fn create_joint(
-    entity1: Entity,
-    entity2: Entity,
-    anchor_point: Vec2,
-    connection: Vec2,
-    block_size_one: BlockSize,
-    block_size_two: BlockSize,
-) -> FixedJoint {
-    let anchor_point_one = calculate_anchor(connection, block_size_one);
-    let anchor_point_two = -calculate_anchor(connection, block_size_two);
-
-    info!(
-        "Creating joint between {:?} and {:?} at anchor {:?} with connection {:?}",
-        entity1, entity2, anchor_point, anchor_point_two,
-    );
+fn create_joint(entity1: Entity, entity2: Entity) -> FixedJoint {
     FixedJoint::new(entity1, entity2)
         .with_compliance(1.0)
         .with_linear_velocity_damping(0.1) // Some vibration damping
         .with_angular_velocity_damping(0.1)
-        .with_local_anchor_1(anchor_point_one)
-        .with_local_anchor_2(anchor_point_two)
 }
 
 fn handle_castle_impulses(
