@@ -182,7 +182,7 @@ fn spawn_ability(
             commands.spawn(frostball_bundle);
         }
         ActionType::LightningAttack { .. } => {
-            for (entity) in player_query {
+            for entity in player_query {
                 commands.entity(entity).insert(LightningState {
                     timer: Timer::new(Duration::from_millis(1500), TimerMode::Once),
                 });

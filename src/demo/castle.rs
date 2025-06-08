@@ -46,7 +46,7 @@ impl From<&EntityInstance> for BlockSize {
 }
 
 #[derive(Component, Default, Clone, Debug)]
-pub struct CastleSection(String);
+pub struct CastleSection();
 
 // Add this implementation
 impl From<&EntityInstance> for CastleSection {
@@ -58,7 +58,7 @@ impl From<&EntityInstance> for CastleSection {
                 field.identifier, field.value
             );
         }
-        let section_name = entity_instance
+        let _section_name = entity_instance
             .field_instances
             .iter()
             .find(|f| f.identifier == "SectionName")
@@ -67,7 +67,8 @@ impl From<&EntityInstance> for CastleSection {
                 _ => None,
             });
 
-        CastleSection(section_name.unwrap_or_else(|| "default".to_string()))
+        // CastleSection(section_name.unwrap_or_else(|| "default".to_string()))
+        CastleSection()
     }
 }
 
@@ -124,29 +125,29 @@ fn update_castle_mass(
     *ran_update_mass = true; // Mark that we've run this system
 }
 
-fn visualize_castle_sections(mut query: Query<(&CastleSection, &mut Sprite), With<CastleBlock>>) {
-    // Define colors for different sections
-    let section_colors = [
-        ("Section1", Color::srgb(0.8, 0.2, 0.2)),
-        ("Section2", Color::srgb(0.2, 0.8, 0.2)),
-        ("Section3", Color::srgb(0.2, 0.2, 0.8)),
-    ];
+// fn visualize_castle_sections(mut query: Query<(&CastleSection, &mut Sprite), With<CastleBlock>>) {
+//     // Define colors for different sections
+//     let section_colors = [
+//         ("Section1", Color::srgb(0.8, 0.2, 0.2)),
+//         ("Section2", Color::srgb(0.2, 0.8, 0.2)),
+//         ("Section3", Color::srgb(0.2, 0.2, 0.8)),
+//     ];
 
-    // Create a HashMap for quick lookups
-    let color_map: HashMap<&str, Color> = section_colors.iter().cloned().collect();
+//     // Create a HashMap for quick lookups
+//     let color_map: HashMap<&str, Color> = section_colors.iter().cloned().collect();
 
-    // Apply colors based on section name
-    for (section, mut sprite) in &mut query {
-        // Get color for this section (or use white if not found)
-        let color = color_map
-            .get(section.0.as_str())
-            .copied()
-            .unwrap_or(Color::BLACK);
+//     // Apply colors based on section name
+//     for (section, mut sprite) in &mut query {
+//         // Get color for this section (or use white if not found)
+//         let color = color_map
+//             .get(section.0.as_str())
+//             .copied()
+//             .unwrap_or(Color::BLACK);
 
-        // Apply the color tint
-        sprite.color = color;
-    }
-}
+//         // Apply the color tint
+//         sprite.color = color;
+//     }
+// }
 
 #[derive(Debug, Copy, Clone)]
 struct BlockComposite {
@@ -173,8 +174,8 @@ fn register_all_blocks_for_castle_section(
         top_left.y as f32 - (depth_normalised as f32 / 2.),
     );
 
-    for x in (top_left.x..shape_end_x) {
-        for y in (shape_end_y + 1..=top_left.y) {
+    for x in top_left.x..shape_end_x {
+        for y in shape_end_y + 1..=top_left.y {
             let bk = BlockComposite {
                 entity: entity,
                 block_size: block_size.clone(),
@@ -192,7 +193,7 @@ fn calculate_anchor(bk1: BlockComposite, bk2: BlockComposite) -> Vec2 {
     let x_max = bk1.block_size.0.x / 2.;
     let y_max = bk1.block_size.0.y / 2.;
 
-    if (bk1.block_size.0.x > bk2.block_size.0.x) {
+    if bk1.block_size.0.x > bk2.block_size.0.x {
         let mut x = translated_other.x.clamp(-x_max, y_max);
         let mut y = translated_other.y.clamp(-y_max, y_max);
         if x.abs() == x_max && y.abs() == y_max {

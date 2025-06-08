@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 
+use avian2d::prelude::Mass;
 use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
@@ -68,6 +69,7 @@ fn post_process_player_bundle(
             }),
             ..default()
         });
+        commands.entity(entity).insert(Mass(30.));
         commands.entity(entity).insert(player_animation.clone());
     }
 }

@@ -6,7 +6,6 @@ use rand::Rng;
 use crate::demo::{
     balistics::{Ability, ExplosionBundle, FrostAssets, FrostBundle, Frostbolt},
     castle::CastleBlock,
-    movement::MovementController,
     player::{LightningState, Player},
 };
 
@@ -65,18 +64,10 @@ fn fireball_collisions(
 fn frostbolt_collisions(
     mut commands: Commands,
     frost_assets: Res<FrostAssets>,
-    frostbolt_query: Query<
-        (
-            Entity,
-            &CollidingEntities,
-            &GlobalTransform,
-            &MovementController,
-        ),
-        With<Frostbolt>,
-    >,
+    frostbolt_query: Query<(Entity, &CollidingEntities, &GlobalTransform), With<Frostbolt>>,
     mut dynamic_bodies_query: Query<(Entity, &GlobalTransform, &RigidBody), Without<Ability>>,
 ) {
-    for (frostbolt_entity, colliding_entities, frostbolt_gt, move_controller) in &frostbolt_query {
+    for (frostbolt_entity, colliding_entities, frostbolt_gt) in &frostbolt_query {
         if colliding_entities.is_empty() {
             continue;
         }
@@ -99,7 +90,6 @@ fn frostbolt_collisions(
             let target_position = target_transform.translation();
             let vector_to_target = target_position - frostbolt_position;
             let distance_squared = vector_to_target.length_squared();
-            let direction_to_target = vector_to_target.truncate().normalize_or_zero();
 
             if distance_squared > CONE_RADIUS_SQUARED {
                 continue;

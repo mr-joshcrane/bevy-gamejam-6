@@ -66,7 +66,7 @@ pub fn snap_camera_to_current_level(
             } else {
                 // level is taller than the screen
                 let width = (level.px_wid as f32 / 16.).round() * 16. * ZOOM_FACTOR;
-                let height = width / aspect_ratio; 
+                let height = width / aspect_ratio;
                 orthographic_projection.scaling_mode =
                     bevy::render::camera::ScalingMode::Fixed { width, height };
                 camera_transform.translation.y = (player_translation.y - height / 2.).clamp(

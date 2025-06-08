@@ -23,7 +23,7 @@ impl Default for GameTimer {
     }
 }
 
-fn spawn_game_timer_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_game_timer_ui(mut commands: Commands) {
     commands.spawn((
         widget::ui_root("Game Timer"),
         GlobalZIndex(2),
