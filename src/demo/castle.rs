@@ -1,6 +1,4 @@
-use std::{fs::File, io::Write};
-
-use avian2d::{parry::na::coordinates::X, prelude::*};
+use avian2d::prelude::*;
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_ecs_ldtk::prelude::*;
 
@@ -92,7 +90,7 @@ pub struct CastleBundle {
 fn update_castle_mass(
     mut ran_update_mass: Local<bool>,
     mut commands: Commands,
-    query: Query<(Entity, &BlockSize), Added<CastleBlock>>,
+    query: Query<(Entity, &BlockSize, &Sprite), Added<CastleBlock>>,
 ) {
     if *ran_update_mass {
         return; // Prevent running this system multiple times
@@ -101,11 +99,28 @@ fn update_castle_mass(
         info!("No castle blocks found to update mass.");
         return;
     }
-    for (entity, block_size) in &query {
-        let mass = block_size.0.x * block_size.0.y * 100.;
+    for (entity, block_size, sprite) in query {
+        let base_mass = 100.0; // Base mass for a 16x16 block
+        let area = block_size.0.x * block_size.0.y;
+        let mass = base_mass * (area / (16.0 * 16.0)).sqrt();
+
+        // let mass = 100.;
         info!("Setting mass for castle entity: {:?}", entity);
         commands.entity(entity).insert(Mass(mass)); // Set a default mass for the castle
+        let desired_tile_size = 16.; // Tile size in pixels
+        let stretch_value_x = desired_tile_size / block_size.0.x;
+        let stretch_value_y = desired_tile_size / block_size.0.y;
+        let updated_sprite = Sprite {
+            image_mode: SpriteImageMode::Tiled {
+                tile_x: true,
+                tile_y: true,
+                stretch_value: stretch_value_y.min(stretch_value_x), // Use the smaller value for consistent tiling
+            },
+            ..sprite.clone() // Preserve other fields
+        };
+        commands.entity(entity).insert(updated_sprite);
     }
+
     *ran_update_mass = true; // Mark that we've run this system
 }
 
@@ -173,10 +188,7 @@ fn register_all_blocks_for_castle_section(
 
 fn calculate_anchor(bk1: BlockComposite, bk2: BlockComposite) -> Vec2 {
     // Translate everything relative to grid size
-    // info!("BK1 {:?}", bk1);
-    // info!("BK2 {:?}", bk2);
     let translated_other = (bk2.center_point - bk1.center_point) * GRID_SIZE as f32;
-    // info!("{:?}", translated_other);
     let x_max = bk1.block_size.0.x / 2.;
     let y_max = bk1.block_size.0.y / 2.;
 
@@ -239,15 +251,9 @@ fn create_mortar_joints(
                 x: coordinate.x + dir.x,
                 y: coordinate.y + dir.y,
             };
-            // info!(
-            //     "Entity {:?} at {:?}, Checking potential neighbor at: {:?}",
-            //     block_composite.entity, block_composite.center_point, potential_neighbor_coords,
-            // );
+
             let candidate = global_grid.get(&potential_neighbor_coords);
-            // info!(
-            //     "Candidate for neighbor at {:?} is: {:?}",
-            //     potential_neighbor_coords, candidate
-            // );
+
             if candidate.is_none() {
                 continue;
             }
@@ -255,11 +261,6 @@ fn create_mortar_joints(
             if candidate.entity == block_composite.entity {
                 continue;
             }
-
-            // info!(
-            //     "Found neighbor entity: {:?} at coordinate: {:?} for entity: {:?}",
-            //     candidate.entity, potential_neighbor_coords, block_composite.entity,
-            // );
 
             let joint_id = commands
                 .spawn(create_joint(*block_composite, *candidate))
@@ -276,12 +277,16 @@ fn create_joint(bk1: BlockComposite, bk2: BlockComposite) -> FixedJoint {
     let anchor2 = calculate_anchor(bk2, bk1);
     info!("Anchor point 1 {:?}", anchor1);
     info!("Anchor point 2 {:?}", anchor2);
-    FixedJoint::new(bk1.entity, bk2.entity)
-        .with_compliance(0.00005)
+    let mut joint = FixedJoint::new(bk1.entity, bk2.entity)
+        .with_compliance(0.00001)
         .with_linear_velocity_damping(0.1) // Some vibration damping
         .with_angular_velocity_damping(0.1)
         .with_local_anchor_1(anchor1)
-        .with_local_anchor_2(anchor2)
+        .with_local_anchor_2(anchor2);
+
+    // joint.force = Vec2::new(100000000., 100000000.);
+    joint.align_torque = 10000000.0;
+    joint
 }
 
 fn handle_castle_impulses(
@@ -291,7 +296,7 @@ fn handle_castle_impulses(
         (With<CastleBlock>, Added<ShockwaveHit>),
     >,
 ) {
-    const BREAKING_IMPULSE_THRESHOLD: f32 = 30000.0; // Adjust this value
+    const BREAKING_IMPULSE_THRESHOLD: f32 = 5000.0; // Adjust this value
 
     for (castle_entity, shockwave_hit, child_joints) in &mut castle_query {
         let impulse_magnitude = shockwave_hit.impulse.length();

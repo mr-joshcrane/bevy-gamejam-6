@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
+use crate::demo::balistics::{FrostCooldown, LightningCooldown};
+
 use super::{
     balistics::FireballCooldown, movement::MovementController, player::CharacterController,
 };
@@ -13,6 +15,8 @@ impl Plugin for InputPlugin {
         app.add_input_context::<PlatformerContext>();
         app.add_observer(binding);
         app.add_observer(record_player_fire_input);
+        app.add_observer(record_player_ice_input);
+        app.add_observer(record_player_lightning_input);
         app.add_observer(record_player_directional_input);
     }
 }
@@ -28,9 +32,19 @@ pub struct LateralMovement;
 #[input_action(output = bool)]
 pub struct FireAction;
 
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct IceAction;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct LightningAction;
+
 #[derive(Debug, Clone, Copy, PartialEq, Reflect)]
 pub enum ActionType {
     FireballAttack { direction: Vec2 },
+    FrostAttack { direction: Vec2 },
+    LightningAttack { direction: Vec2 },
 }
 
 fn binding(
@@ -45,6 +59,8 @@ fn binding(
         west: KeyCode::ArrowLeft,
     },));
     action.bind::<FireAction>().to(KeyCode::Space);
+    action.bind::<IceAction>().to(KeyCode::KeyE);
+    action.bind::<LightningAction>().to(KeyCode::KeyQ);
 }
 
 fn record_player_directional_input(
@@ -80,4 +96,52 @@ fn record_player_fire_input(
 
     // Queue the action with directional information
     character_controller.queue_action(ActionType::FireballAttack { direction });
+}
+
+fn record_player_ice_input(
+    trigger: Trigger<Started<IceAction>>,
+    cooldown: Res<FrostCooldown>,
+    mut controller_query: Query<(&mut CharacterController, &MovementController)>,
+) {
+    info!("Processing ice attack");
+
+    if !cooldown.timer.finished() {
+        // If the timer is not finished, the ability is on cooldown
+        info!("Timer not finished!");
+        return;
+    }
+    let (mut character_controller, movement_controller) =
+        controller_query.get_mut(trigger.target()).unwrap();
+
+    // Determine direction based on movement controller
+    let direction = if movement_controller.direction.length_squared() > 0.0 {
+        // Use the current movement direction if moving
+        movement_controller.direction.normalize_or_zero()
+    } else {
+        // Default to last non-zero x direction or right if none
+        Vec2::new(1.0, 0.0)
+    };
+    // Queue the action with directional information
+    character_controller.queue_action(ActionType::FrostAttack { direction });
+}
+
+fn record_player_lightning_input(
+    trigger: Trigger<Started<LightningAction>>,
+    cooldown: Res<LightningCooldown>,
+    mut controller_query: Query<(&mut CharacterController, &MovementController)>,
+) {
+    if !cooldown.timer.finished() {
+        info!("Timer not finished!");
+        return;
+    }
+    let (mut character_controller, movement_controller) =
+        controller_query.get_mut(trigger.target()).unwrap();
+    let direction = if movement_controller.direction.length_squared() > 0.0 {
+        // Use the current movement direction if moving
+        movement_controller.direction.normalize_or_zero()
+    } else {
+        // Default to last non-zero x direction or right if none
+        Vec2::new(1.0, 0.0)
+    };
+    character_controller.queue_action(ActionType::LightningAttack { direction });
 }

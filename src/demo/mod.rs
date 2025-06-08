@@ -14,6 +14,7 @@ mod input;
 pub mod level;
 mod movement;
 pub mod player;
+mod timer;
 mod walls;
 
 pub(super) fn plugin(app: &mut App) {
@@ -23,10 +24,11 @@ pub(super) fn plugin(app: &mut App) {
         level::plugin,
         movement::plugin,
         player::plugin,
-        camera::plugin,
         collision::plugin,
         walls::plugin,
         castle::plugin,
         balistics::plugin,
+        camera::plugin,
+        timer::plugin,
     ));
 }

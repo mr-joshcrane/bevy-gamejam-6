@@ -72,6 +72,11 @@ fn post_process_player_bundle(
     }
 }
 
+#[derive(Component, Debug, Reflect)]
+pub struct LightningState {
+    pub timer: Timer,
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]
 pub struct Player;
@@ -80,7 +85,9 @@ pub struct Player;
 #[reflect(Resource)]
 pub struct PlayerAssets {
     #[dependency]
-    ducky: Handle<Image>,
+    pub ducky: Handle<Image>,
+    #[dependency]
+    pub lightning: Handle<Image>,
     #[dependency]
     pub steps: Vec<Handle<AudioSource>>,
 }
@@ -96,6 +103,7 @@ impl FromWorld for PlayerAssets {
                     settings.sampler = ImageSampler::nearest();
                 },
             ),
+            lightning: assets.load("images/lightning.png"),
             steps: vec![
                 assets.load("audio/sound_effects/step1.ogg"),
                 assets.load("audio/sound_effects/step2.ogg"),

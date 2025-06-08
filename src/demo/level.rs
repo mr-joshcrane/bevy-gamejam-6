@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 
-use crate::{asset_tracking::LoadResource, screens::Screen};
+use crate::{asset_tracking::LoadResource, audio::music, screens::Screen};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins(LdtkPlugin);
@@ -26,7 +26,8 @@ impl FromWorld for LevelAssets {
     fn from_world(world: &mut World) -> Self {
         let assets = world.resource::<AssetServer>();
         Self {
-            music: assets.load("audio/music/FireDuck.mp3"),
+            music: assets.load("audio/music/DuckNBass_Main.ogg"),
+
             ldtk_level: LdtkProjectHandle {
                 handle: assets.load("levels/level.ldtk"),
             },
@@ -43,10 +44,10 @@ pub fn spawn_level(mut commands: Commands, level_assets: Res<LevelAssets>) {
             ..default()
         },
         StateScoped(Screen::Gameplay),
-        // children![(
-        //     Name::new("Gameplay Music"),
-        //     music(level_assets.music.clone())
-        // )],
+        children![(
+            Name::new("Gameplay Music 1"),
+            music(level_assets.music.clone())
+        )],
     ));
 }
 
