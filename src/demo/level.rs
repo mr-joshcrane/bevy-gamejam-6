@@ -26,7 +26,7 @@ impl FromWorld for LevelAssets {
     fn from_world(world: &mut World) -> Self {
         let assets = world.resource::<AssetServer>();
         Self {
-            music: assets.load("audio/music/DuckNBass_Main.ogg"),
+            music: assets.load("audio/music/FireDuck.ogg"),
 
             ldtk_level: LdtkProjectHandle {
                 handle: assets.load("levels/level.ldtk"),

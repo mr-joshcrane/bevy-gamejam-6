@@ -80,7 +80,7 @@ fn global_volume_widget() -> impl Bundle {
 }
 
 const MIN_VOLUME: f32 = 0.0;
-const MAX_VOLUME: f32 = 3.0;
+const MAX_VOLUME: f32 = 2.0;
 
 fn lower_global_volume(_: Trigger<Pointer<Click>>, mut global_volume: ResMut<GlobalVolume>) {
     let linear = (global_volume.volume.to_linear() - 0.1).max(MIN_VOLUME);
